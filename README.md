@@ -36,7 +36,7 @@ The goal is to explore and better understand MeshCore communication at a low lev
 
 &#x20; Connects to a device and prints its services and characteristics
 
-- `ble\_comm.py` \*(planned / included)\*  
+- `ble\_comm.py` *(planned / included)*  
 
 &#x20; Low-level communication tool for reading and sending messages
 
@@ -44,7 +44,7 @@ The goal is to explore and better understand MeshCore communication at a low lev
 
 ## Status
 
-⚠️ This is an \*\*experimental project\*\*.  
+⚠️ This is an **experimental project**.  
 
 Functionality may change, break, or be incomplete.
 
@@ -52,8 +52,8 @@ Functionality may change, break, or be incomplete.
 
 ## Platform Support
 
-- ✅ \*\*Windows\*\* — works best (due to BLE library support)
-- ⚠️ \*\*Linux\*\* — partial / in progress
+- ✅ **Windows** — works best (due to BLE library support)
+- ⚠️ **Linux** — partial / in progress
 
 Improving Linux compatibility is planned.
 
