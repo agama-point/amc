@@ -24,19 +24,19 @@ The goal is to explore and better understand MeshCore communication at a low lev
 ## Project Structure
 
 
-- `amc\_config.py`  
+- `amc_config.py`  
 
 &#x20; Configuration file (device address, UUIDs, etc.)
 
-- `ble\_scan.py`  
+- `amc_ble_list.py`  
 
-&#x20; Lists nearby BLE devices
+&#x20; Scan nearby BLE devices
 
-- `ble\_connect\_info.py`  
+- `amc_connect.py`  
 
 &#x20; Connects to a device and prints its services and characteristics
 
-- `ble\_comm.py` *(planned / included)*  
+- `amc_comm.py` *(planned / included)*  
 
 &#x20; Low-level communication tool for reading and sending messages
 
