@@ -4,8 +4,9 @@
 
 import asyncio
 from bleak import BleakScanner, BleakClient
-from amc_config import DEVICE_ADDRESS, NAME_CHAR, RX_CHAR
+from amc import DEVICE_ADDRESS, NAME_CHAR, RX_CHAR
 
+ver = "0.2/2026-03"
 
 def notification_handler(sender, data):
     try:
@@ -28,6 +29,7 @@ async def find_device_by_mac(address):
 
 
 async def main():
+    print("amc_connect: ", ver)
     print("=== Target device ===")
     print(f"MAC: {DEVICE_ADDRESS}\n")
 
@@ -124,17 +126,18 @@ async def main():
 asyncio.run(main())
 
 """
+amc_connect:  0.2/2026-03
 === Target device ===
-MAC: C6:04:19:D0:3F:xx
+MAC: CE:2E:9F:5E:12:xx
 
 === Scanning for device ===
-[FOUND] MeshCore-06F53292 | C6:04:19:D0:3F:xx
+[FOUND] MeshCore-Yend@03 | CE:2E:9F:5E:12:xx
 
 === Connecting & Pairing ===
 [OK] Paired: None
 [OK] Connected: True
 
-Device name: MeshCore-06F532xx
+Device name: MeshCore-Yend@03
 
 === Loading services ===
 
@@ -152,10 +155,19 @@ Device name: MeshCore-06F532xx
   [CHAR] 6e400002-b5a3-f393-e0a9-e50e24dcca9e (write,write-without-response)
 
 === Reading readable characteristics ===
-00002a00-0000-1000-8000-00805f9b34fb = 4d657368436f72652d3036463533323932 | text: MeshCore-06F53292
+00002a00-0000-1000-8000-00805f9b34fb = 4d657368436f72652d59656e64403033 | text: MeshCore-Yend@03
 00002a01-0000-1000-8000-00805f9b34fb = 0000 | text: 
 00002a04-0000-1000-8000-00805f9b34fb = 0c0018000400c800 | text: 
 00002aa6-0000-1000-8000-00805f9b34fb = 01 | text: 
+
+=== Starting notification listener ===
+[OK] Notifications enabled on 6e400003-b5a3-f393-e0a9-e50e24dcca9e
+
+=== Sending test commands ===
+[SEND] b'info\n'
+[SEND] b'version\n'
+
+=== Sniffing (10 seconds) ===
 
 === Starting notification listener ===
 [ERR] Cannot start notify: (5, 'GATT Protocol Error: Insufficient Authentication')
