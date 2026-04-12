@@ -6,7 +6,7 @@ from amc.decode import parse_packet, format_output, print_knowledge_base
 from amc.test import run_self_test
 # from amc.decode import MSG_ONLY, DEDUP_WINDOW
 import amc.decode as mcd
-from amc import Device, DEVICE_ADDRESS, NAME_CHAR, RX_CHAR
+from amc import Device, DEVICE_ADDRESS, NAME_CHAR, RX_CHAR, TX_CHAR
 import os
 from datetime import datetime
 
@@ -44,7 +44,7 @@ async def main():
             return
 
     print(f"🔍 Searching for device {DEVICE_ADDRESS}...")
-    dev = Device(DEVICE_ADDRESS, NAME_CHAR, RX_CHAR)
+    dev = Device(DEVICE_ADDRESS, NAME_CHAR, RX_CHAR, tx_char=TX_CHAR)
     
     try:
         if await dev.connect():
