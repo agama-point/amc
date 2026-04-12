@@ -15,7 +15,7 @@ __version__ = "0.33 | 2026-03"
 MSG_ONLY = True
 
 # Deduplication window in seconds — same (channel, text) within this window is suppressed
-DEDUP_WINDOW = 5.0
+DEDUP_WINDOW = 3.0 # 5.0
 
 def print_knowledge_base():
    print("="*63)
