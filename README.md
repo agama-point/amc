@@ -63,7 +63,7 @@ Improving Linux compatibility is planned.
 
 - Python 3.10+
 
-- `bleak` library
+pip install -r requirements.txt
 
 
 Install dependencies:
