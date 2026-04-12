@@ -17,7 +17,6 @@ mcd.DEDUP_WINDOW = 2.0
 
 print_knowledge_base()
 
-
 # -------------- log ---------------
 filename = datetime.now().strftime("data/msg_log_%y%m%d_%H%M.txt")
 if DATA_LOG:
@@ -96,20 +95,6 @@ if __name__ == "__main__":
    
    ver:  0.33 | 2026-03
 ===============================================================
-🔍 Searching for device CE:2E:9F:5E:12:FB...
-===============================================================
-
-   AMC | AGAMA_POINT MESHCORE GRP_TXT DECODER 
-   ==========================================
-   Algorithm: AES-128 ECB
-   Key:       SHA256(channel_name)[:16]
-   Struct.:   [header][path_len][path(4B)][ch_hash(3B)][enc(26B)][mac(6B)]
-   Plaintext: [timestamp(4B LE)][0x00][text...]
-   ------------------------------------------------
-   Info:
-   
-   ver:  0.33 | 2026-03
-===============================================================
 ✅ Connected. Device name: [ MeshCore-Yend@03 ]
 ===============================================================
 Monitoring traffic...
@@ -120,11 +105,19 @@ Monitoring traffic...
   [#freebeer] Yenda_Tag: BEER! Na oslavu amc_monitor
 10:51:53.749 | 88 | 72B | 2FCF ➔ 1540 | CHAN MSG
   [#2byte] Yenda_Tag: Mám nastaveno 2B, zkouknu trasy. 
-10:54:08.389 | 88 | 40B | 2FD1 ➔ 1540 | CHAN MSG
-  [#test] Yenda_Tag: Test
-10:55:38.031 | 88 | 40B | 30E8 ➔ 1540 | CHAN MSG
-  [#test] Yenda_Tag: Test 123
-10:55:49.072 | 88 | 74B | 0E91 ➔ 1541 | CHAN MSG
-  [#test] EL Pong: @[Yenda_Tag] Funguje to perfektně, Yenda_Tag!
+14:52:12.437 | 88 | 40B | 2FE5 ➔ 1540 | CHAN MSG
+  [#freebeer] Yenda_Tag: BEER! A zima
+14:53:57.681 | 88 | 112B | FE8E ➔ 1508 | CHAN MSG
+  [#2byte] Lȑ{
+14:59:20.511 | 88 | 40B | 30E4 ➔ 1540 | CHAN MSG
+  [#test] Yenda_Tag: Test monitor
+14:59:31.133 | 88 | 74B | 0990 ➔ 1541 | CHAN MSG
+  [#test] EL Pong: @[Yenda_Tag] Test OK, přijato: "Test monitor".
+14:59:50.271 | 88 | 76B | 30CB ➔ 1504 | CHAN MSG
+  [#test] agoranode: @[Yenda_Tag] podej žákovskou, píši za 1
+15:00:15.203 | 88 | 74B | FF8F ➔ 1502 | CHAN MSG
+  [#test] agoranode: @[EL Pong] podej žákovskou, píši za 1
+15:00:39.323 | 88 | 46B | 058F ➔ 1506 | CHAN MSG
+  [Public] Dejv Bobry mobile: (*Bobry)
 ...
 """
