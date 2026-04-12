@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
+# AgamaPoint MeshCore monitor | amc_monitor.py
 
 import asyncio
-from amc.decode import parse_packet, format_output
+from amc.decode import parse_packet, format_output, print_knowledge_base
 from amc.test import run_self_test
 from amc import Device, DEVICE_ADDRESS, NAME_CHAR, RX_CHAR
 
 DEBUG = False
 
+print_knowledge_base()
 
 async def main():
     # 1. Spustit test pokud je DEBUG aktivní (nastavuješ v amc/test.py)
@@ -20,7 +22,10 @@ async def main():
     
     try:
         if await dev.connect():
-            print("✅ Connected. Monitoring traffic...\n")
+            print_knowledge_base()
+            print(f"✅ Connected. Device name: \033[92m[ {dev.name} ]\033[0m")
+            print("="*63)
+            print("Monitoring traffic...\n")
             
             # --- TADY JE TEN HANDLER ---
             async def handler(sender, data):
@@ -49,16 +54,59 @@ if __name__ == "__main__":
         print("\n[!] Monitor terminated by user.")
 
 """
-...[#test] Yenda_Tag: Test pro geminy3
-19:02:50.599 | 88 | 44B | 1092 ➔ 1542
-19:02:50.718 | 88 | 46B | 2ECC ➔ 1543
-19:02:51.708 | 88 | 48B | E587 ➔ 1544
-19:02:53.811 | 88 | 110B | 1193 ➔ 154B
-19:02:54.740 | 88 | 112B | 31CD ➔ 154C
-19:03:05.811 | 88 | 63B | 1593 ➔ 1D07
-19:03:06.018 | 88 | 60B | E587 ➔ 1D04
-19:03:06.708 | 88 | 64B | 33CD ➔ 1D08
-19:03:08.118 | 88 | 74B | 0F92 ➔ 1502
+===============================================================
+🔍 Searching for device CE:2E:9F:5E:12:FB...
+===============================================================
+
+   MESHCORE GRP_TXT DECODER 
+   ========================
+   Algorithm: AES-128 ECB
+   Key:       SHA256(channel_name)[:16]
+   Struct.:   [header][path_len][path(4B)][ch_hash(3B)][enc(26B)][mac(6B)]
+   Plaintext: [timestamp(4B LE)][0x00][text...]
+   ------------------------------------------------
+   Info:
+   
+   ver:  0.2|2026-03
+===============================================================
+✅ Connected. Device name: [ MeshCore-Yend@03 ]
+===============================================================
+Monitoring traffic...
+
+09:13:14.386 | 88 | 40B | 30D2 ➔ 1540
+  [#test] Yenda_Tag: Test dobré rano
+09:13:14.595 | 88 | 42B | 30C9 ➔ 1541
+  [#test] Yenda_Tag: Test dobré rano
+09:13:15.374 | 88 | 46B | 068F ➔ 1543
+  [#test] Yenda_Tag: Test dobré rano
+09:13:23.177 | 88 | 74B | 048E ➔ 1541
+  [#test] EL Pong: @[Yenda_Tag] Funguje, dobré ráno i tobě!
+09:13:23.595 | 88 | 76B | 32CA ➔ 1542
+  [#test] EL Pong: @[Yenda_Tag] Funguje, dobré ráno i tobě!
+09:13:37.636 | 88 | 40B | 32D2 ➔ 1540
+  [#test] Yenda_Tag: Ping
+09:13:38.054 | 88 | 42B | 33CA ➔ 1541
+  [#test] Yenda_Tag: Ping
+09:13:38.475 | 88 | 44B | 048F ➔ 1542
+  [#test] Yenda_Tag: Ping
+09:13:42.677 | 88 | 59B | DB85 ➔ 1503
+  [#test] Luky-HomeAssistant: Yenda_Tag Pong
+09:13:42.677 | 83 | 1B
+09:13:42.885 | 88 | 60B | 2DC9 ➔ 1504
+  [#test] Luky-HomeAssistant: Yenda_Tag Pong
+09:13:43.275 | 88 | 59B | F38D ➔ 1503
+  [#test] Luky-HomeAssistant: Yenda_Tag Pong
+09:13:43.935 | 88 | 75B | 028E ➔ 1503
   [#test] agoranode: @[Yenda_Tag] podej žákovskou, píši za 1
+09:13:43.935 | 83 | 1B
+09:13:44.775 | 88 | 76B | 33CA ➔ 1504
+  [#test] agoranode: @[Yenda_Tag] podej žákovskou, píši za 1
+09:13:48.407 | 88 | 79B | E085 ➔ 1507
+  [#test] observer.hkfree.org: Hradec Kralove OK, Yenda_Tag
+09:13:48.408 | 83 | 1B
+09:13:49.125 | 88 | 81B | F58E ➔ 1509
+  [#test] observer.hkfree.org: Hradec Kralove OK, Yenda_Tag
+09:13:49.847 | 88 | 82B | 30CA ➔ 150A
+  [#test] observer.hkfree.org: Hradec Kralove OK, Yenda_Tag
 ...
 """
