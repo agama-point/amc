@@ -1,159 +1,170 @@
+# amc_app.py
+
 import sys
 import asyncio
 import threading
 from datetime import datetime
 
+version = "0.2 | 2026-03"
+
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QCheckBox, QLineEdit, QLabel, QTextEdit, QFrame
+    QPushButton, QCheckBox, QLineEdit, QLabel, QTextEdit, QTextBrowser, QFrame
 )
-from PyQt6.QtCore import Qt, QObject, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QUrl
 from PyQt6.QtGui import QFont
 
 from bleak import BleakScanner, BleakClient
 
-from amc import DEVICE_ADDRESS, NAME_CHAR, RX_CHAR, TX_CHAR
+# - Configuration ------------------------------
+try:
+    from amc import DEVICE_ADDRESS, NAME_CHAR, RX_CHAR, TX_CHAR
+except ImportError:
+    DEVICE_ADDRESS = ""
+    NAME_CHAR = "00002a00-0000-1000-8000-00805f9b34fb"
+    RX_CHAR = None # Obvykle se čte z RX (z pohledu periferie TX)
+    TX_CHAR = None
 
-# ── BLE worker (runs in a background thread with its own event loop) ──────────
+# - BLE worker ----------------------------
 class BleWorker(QObject):
-    log_signal        = pyqtSignal(str)          # append text to log
-    status_signal     = pyqtSignal(str)          # update status label
-    device_name_signal = pyqtSignal(str)         # update device-name label
-    connected_signal  = pyqtSignal(bool)         # toggle button state
+    log_signal         = pyqtSignal(str)
+    status_signal      = pyqtSignal(str)
+    device_name_signal = pyqtSignal(str)
+    connected_signal   = pyqtSignal(bool)
 
     def __init__(self):
         super().__init__()
         self._client: BleakClient | None = None
         self._loop:   asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
+        self._ensure_loop()
 
-    # ── public API (called from GUI thread) ──────────────────────────────────
-    def connect(self, address: str):
-        self._thread = threading.Thread(
-            target=self._run_loop,
-            args=(address,),
-            daemon=True,
-        )
-        self._thread.start()
+    def _ensure_loop(self):
+        if self._thread is None or not self._thread.is_alive():
+            self._thread = threading.Thread(target=self._run_loop, daemon=True)
+            self._thread.start()
+
+    def _run_loop(self):
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
+        self._loop.run_forever()
+
+    def connect(self, address: str, do_read: bool):
+        asyncio.run_coroutine_threadsafe(self._do_connect(address, do_read), self._loop)
 
     def disconnect(self):
         if self._loop and self._client:
             asyncio.run_coroutine_threadsafe(self._do_disconnect(), self._loop)
 
-    # ── internals ────────────────────────────────────────────────────────────
-    def _run_loop(self, address: str):
-        self._loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self._loop)
-        try:
-            self._loop.run_until_complete(self._do_connect(address))
-        finally:
-            self._loop.close()
-            self._loop = None
+    def scan(self):
+        asyncio.run_coroutine_threadsafe(self._do_scan(), self._loop)
 
-    async def _do_connect(self, address: str):
-        self.log("Scanning for device …")
+    async def _do_scan(self):
+        self.log("<i>Scanning BLE (5s)...</i>")
         self.status_signal.emit("Scanning …")
-
-        device = None
         try:
-            found = await BleakScanner.discover(timeout=5.0)
-            for d in found:
-                if d.address.lower() == address.lower():
-                    device = d
-                    break
+            devices_dict = await BleakScanner.discover(timeout=5.0, return_adv=True)
+            if not devices_dict:
+                self.log("No devices found.")
+            else:
+                sorted_items = sorted(
+                    devices_dict.values(),
+                    key=lambda x: x[1].rssi if x[1].rssi is not None else -100,
+                    reverse=True
+                )
+                for device, adv_data in sorted_items:
+                    rssi = adv_data.rssi if adv_data.rssi is not None else "N/A"
+                    name = device.name if device.name else "Unknown"
+                    link = f"<a href='{device.address}' style='color: #2196f3; font-weight: bold;'>{device.address}</a>"
+                    self.log(f"[SCAN] {link} | {name} | {rssi} dBm")
         except Exception as e:
             self.log(f"[ERR] Scan failed: {e}")
-            self.status_signal.emit("Scan error")
-            self.connected_signal.emit(False)
-            return
 
-        if not device:
-            self.log(f"[ERR] Device {address} not found")
-            self.status_signal.emit("Not found")
-            self.connected_signal.emit(False)
-            return
+        is_conn = self._client.is_connected if self._client else False
+        self.status_signal.emit("Connected" if is_conn else "Idle")
 
-        self.log(f"[FOUND] {device.name} | {device.address}")
+  
+    async def _do_connect(self, address: str, do_read: bool):
+        self.log(f"Connecting to {address}...")
         self.status_signal.emit("Connecting …")
-
-        self._client = BleakClient(device, pair=True,
-                                   disconnected_callback=self._on_disconnected)
         try:
+            self._client = BleakClient(address, disconnected_callback=self._on_disconnected)
             await self._client.connect()
+
+            # Načtení služeb pro diagnostiku
+            services = self._client.services
+            
+            # Read device name
+            name = address
+            try:
+                if NAME_CHAR:
+                    raw = await self._client.read_gatt_char(NAME_CHAR)
+                    name = raw.decode("utf-8").strip()
+            except: pass
+
+            self.device_name_signal.emit(name)
+            self.log(f"<b style='color:#4caf50;'>[OK] Connected: {name}</b>")
+            self.status_signal.emit("Connected")
+            self.connected_signal.emit(True)
+
+            # Notifications (RX)
+            if do_read:
+                if not RX_CHAR:
+                    self.log("<span style='color:orange;'>[WARN] RX_CHAR UUID is not defined!</span>")
+                else:
+                    char = services.get_characteristic(RX_CHAR)
+                    if char:
+                        # Diagnostika: co charakteristika reálně umí?
+                        props = char.properties
+                        self.log(f"<small style='color:#888;'>RX Props: {', '.join(props)}</small>")
+                        
+                        if "notify" in props or "indicate" in props:
+                            await self._client.start_notify(RX_CHAR, self._on_notify)
+                            self.log(f"<i style='color:#bbb;'>Notifications enabled on {RX_CHAR}</i>")
+                        else:
+                            self.log(f"<span style='color:red;'>[ERR] {RX_CHAR} does not support notifications! (Props: {props})</span>")
+                    else:
+                        self.log(f"<span style='color:red;'>[ERR] Characteristic {RX_CHAR} not found on device!</span>")
+            else:
+                self.log("<i>Reading (RX) disabled by user.</i>")
+
         except Exception as e:
-            self.log(f"[ERR] Connect failed: {e}")
+            self.log(f"[ERR] Connection failed: {e}")
             self.status_signal.emit("Connect error")
-            self.connected_signal.emit(False)
-            self._client = None
-            return
-
-        # pairing
-        try:
-            await self._client.pair()
-            self.log("[OK] Paired")
-        except Exception:
-            self.log("[WARN] Pairing skipped / already paired")
-
-        # device name
-        try:
-            raw = await self._client.read_gatt_char(NAME_CHAR)
-            name = raw.decode("utf-8").strip()
-        except Exception:
-            name = device.name or address
-
-        self.device_name_signal.emit(name)
-        self.log(f"[OK] Connected — {name}")
-        self.status_signal.emit("Connected")
-        self.connected_signal.emit(True)
-
-        # enable notifications
-        try:
-            await self._client.start_notify(TX_CHAR, self._on_notify)
-            self.log(f"[OK] Notifications enabled on {TX_CHAR}")
-        except Exception as e:
-            self.log(f"[WARN] Notifications not available: {e}")
-
-        # keep the loop alive while connected
-        while self._client and self._client.is_connected:
-            await asyncio.sleep(0.5)
+            self.connected_signal.emit(False) 
+    
 
     async def _do_disconnect(self):
         if self._client:
-            try:
-                await self._client.stop_notify(TX_CHAR)
-            except Exception:
-                pass
-            try:
-                await self._client.disconnect()
-            except Exception:
-                pass
+            # Bleak automaticky zastaví notifikace při odpojení, 
+            # ale explicitní volání je čistší pokud bychom chtěli zůstat připojeni
+            await self._client.disconnect()
             self._client = None
 
     def _on_disconnected(self, _client):
-        self.log("[INFO] Device disconnected")
+        self.log("<b style='color:#f44336;'>[INFO] Disconnected</b>")
         self.status_signal.emit("Disconnected")
         self.device_name_signal.emit("—")
         self.connected_signal.emit(False)
-        self._client = None
 
     def _on_notify(self, _sender, data: bytearray):
         try:
             text = data.decode("utf-8", errors="ignore").strip()
-        except Exception:
-            text = ""
-        self.log(f"[NOTIFY] hex:{data.hex()}  text:{text}")
+            self.log(f"<span style='color:#bbb;'>[RX]</span> {text}")
+        except:
+            self.log(f"[RX HEX] {data.hex()}")
 
     def log(self, msg: str):
         ts = datetime.now().strftime("%H:%M:%S")
-        self.log_signal.emit(f"{ts}  {msg}")
+        self.log_signal.emit(f"<span style='color:#666;'>{ts}</span> &nbsp;{msg}")
 
 
-# ── Main window ──────────────────────────────────────────────────────────────
+# - Main window ---------------------------
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("AMC | MeshCore BLE")
-        self.resize(640, 560)
+        self.setWindowTitle(f"AMC | MeshCore BLE v{version}")
+        self.resize(720, 600)
 
         self._worker = BleWorker()
         self._worker.log_signal.connect(self._append_log)
@@ -164,58 +175,59 @@ class MainWindow(QWidget):
         self._build_ui()
         self.apply_dark_theme()
 
-    # ── UI construction ───────────────────────────────────────────────────────
     def _build_ui(self):
         root = QVBoxLayout(self)
-        root.setSpacing(8)
-        root.setContentsMargins(12, 12, 12, 12)
+        root.setContentsMargins(15, 15, 15, 15)
+        root.setSpacing(10)
 
-        # ── top bar: MAC + connect button ─────────────────────────────────
+        # Top bar
         top = QHBoxLayout()
         self.mac_input = QLineEdit(DEVICE_ADDRESS)
-        self.mac_input.setPlaceholderText("MAC address  e.g. CE:2E:9F:5E:12:AB")
+        self.mac_input.setPlaceholderText("MAC Address (e.g. AA:BB:CC...)")
         self.mac_input.setFont(QFont("Monospace", 10))
 
+        self.scan_btn = QPushButton("Scan")
+        self.scan_btn.setFixedWidth(80)
+        self.scan_btn.clicked.connect(self._worker.scan)
+
         self.connect_btn = QPushButton("Connect")
-        self.connect_btn.setFixedWidth(110)
+        self.connect_btn.setFixedWidth(100)
         self.connect_btn.clicked.connect(self._toggle_connection)
 
         top.addWidget(QLabel("Device:"))
         top.addWidget(self.mac_input, stretch=1)
+        top.addWidget(self.scan_btn)
         top.addWidget(self.connect_btn)
         root.addLayout(top)
 
-        # ── info row: status pill + device name ───────────────────────────
+        # Info & Options row
         info = QHBoxLayout()
+        self.status_label = QLabel("● Idle")
+        self.status_label.setFixedWidth(140)
 
-        self.status_label = QLabel("●  Idle")
-        self.status_label.setFixedWidth(160)
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.VLine)
-        sep.setFrameShadow(QFrame.Shadow.Sunken)
-
-        name_row = QHBoxLayout()
-        name_row.addWidget(QLabel("Name:"))
         self.name_label = QLabel("—")
         self.name_label.setFont(QFont("Monospace", 10))
-        name_row.addWidget(self.name_label)
-        name_row.addStretch()
+        
+        # New: Read Checkbox
+        self.read_checkbox = QCheckBox("Read (RX)")
+        self.read_checkbox.setChecked(True)
+        self.read_checkbox.setToolTip("Enable notifications from RX characteristic on connect")
 
         info.addWidget(self.status_label)
-        info.addWidget(sep)
-        info.addLayout(name_row, stretch=1)
+        info.addWidget(QLabel("Name:"))
+        info.addWidget(self.name_label, stretch=1)
+        info.addWidget(self.read_checkbox)
         root.addLayout(info)
 
-        # ── log area ──────────────────────────────────────────────────────
-        self.log_box = QTextEdit()
+        # Log
+        self.log_box = QTextBrowser()
         self.log_box.setReadOnly(True)
         self.log_box.setFont(QFont("Monospace", 9))
-        self.log_box.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        root.addWidget(self.log_box, stretch=1)
+        self.log_box.setOpenExternalLinks(False)
+        self.log_box.anchorClicked.connect(self._on_addr_clicked)
+        root.addWidget(self.log_box)
 
-        # ── bottom bar: clear + dark/light toggle ─────────────────────────
+        # Bottom
         bottom = QHBoxLayout()
         clear_btn = QPushButton("Clear log")
         clear_btn.clicked.connect(self.log_box.clear)
@@ -229,49 +241,50 @@ class MainWindow(QWidget):
         bottom.addWidget(self.theme_toggle)
         root.addLayout(bottom)
 
-    # ── slots ─────────────────────────────────────────────────────────────────
     @pyqtSlot(str)
-    def _append_log(self, msg: str):
-        self.log_box.append(msg)
+    def _append_log(self, html_msg: str):
+        self.log_box.append(html_msg)
         self.log_box.verticalScrollBar().setValue(
             self.log_box.verticalScrollBar().maximum()
         )
 
+    @pyqtSlot(bool)
+    def _on_connection_changed(self, connected: bool):
+        self.connect_btn.setText("Disconnect" if connected else "Connect")
+        self.mac_input.setEnabled(not connected)
+        self.scan_btn.setEnabled(not connected)
+        self.read_checkbox.setEnabled(not connected) # Neměnit během spojení
+
+    def _on_addr_clicked(self, url: QUrl):
+        addr = url.toString()
+        self.mac_input.setText(addr)
+        self._append_log(f"<i style='color:#888;'>Selected: {addr}</i>")
+
+    def _toggle_connection(self):
+        if self.connect_btn.text() == "Connect":
+            addr = self.mac_input.text().strip()
+            do_read = self.read_checkbox.isChecked()
+            if addr:
+                self._worker.connect(addr, do_read)
+        else:
+            self._worker.disconnect()
+
     @pyqtSlot(str)
     def _set_status(self, text: str):
-        icons = {
-            "Connected":    ("●", "#4caf50"),
-            "Disconnected": ("●", "#f44336"),
-            "Not found":    ("●", "#f44336"),
-            "Scan error":   ("●", "#f44336"),
-            "Connect error":("●", "#f44336"),
-            "Scanning …":   ("◌", "#ffb300"),
-            "Connecting …": ("◌", "#ffb300"),
+        colors = {
+            "Connected": "#4caf50",
+            "Scanning …": "#ffb300",
+            "Connecting …": "#ffb300",
+            "Idle": "#9e9e9e"
         }
-        icon, color = icons.get(text, ("●", "#9e9e9e"))
-        self.status_label.setText(f"{icon}  {text}")
+        color = colors.get(text, "#f44336")
+        self.status_label.setText(f"● {text}")
         self.status_label.setStyleSheet(f"color: {color}; font-weight: bold;")
 
     @pyqtSlot(str)
     def _set_device_name(self, name: str):
         self.name_label.setText(name)
 
-    @pyqtSlot(bool)
-    def _on_connection_changed(self, connected: bool):
-        self.connect_btn.setText("Disconnect" if connected else "Connect")
-        self.mac_input.setEnabled(not connected)
-
-    def _toggle_connection(self):
-        if self.connect_btn.text() == "Connect":
-            addr = self.mac_input.text().strip()
-            if not addr:
-                self._append_log("⚠  Enter a MAC address first")
-                return
-            self._worker.connect(addr)
-        else:
-            self._worker.disconnect()
-
-    # ── themes ────────────────────────────────────────────────────────────────
     def _toggle_theme(self):
         if self.theme_toggle.isChecked():
             self.apply_dark_theme()
@@ -280,27 +293,41 @@ class MainWindow(QWidget):
 
     def apply_dark_theme(self):
         self.setStyleSheet("""
-            QWidget          { background:#2b2b2b; color:#e0e0e0; }
-            QTextEdit,
-            QLineEdit        { background:#1e1e1e; color:#e0e0e0;
-                               border:1px solid #555; border-radius:4px; padding:3px; }
-            QPushButton      { background:#444; color:#e0e0e0;
-                               border:1px solid #666; border-radius:4px; padding:5px 10px; }
-            QPushButton:hover{ background:#555; }
-            QCheckBox        { color:#e0e0e0; }
-            QFrame[frameShape="5"] { color:#555; }   /* VLine */
+            QWidget { background:#2b2b2b; color:#e0e0e0; }
+            QTextBrowser, QLineEdit {
+                background:#1e1e1e;
+                border:1px solid #555;
+                border-radius:4px;
+                padding:4px;
+            }
+            QPushButton {
+                background:#444;
+                border:1px solid #666;
+                padding:6px;
+                border-radius:4px;
+            }
+            QPushButton:hover { background:#555; }
+            QCheckBox { spacing: 5px; }
         """)
 
     def apply_light_theme(self):
         self.setStyleSheet("""
-            QPushButton      { border:1px solid #bbb; border-radius:4px; padding:5px 10px; }
-            QPushButton:hover{ background:#e0e0e0; }
-            QTextEdit,
-            QLineEdit        { border:1px solid #bbb; border-radius:4px; padding:3px; }
+            QWidget { background:#f5f5f5; color:#222; }
+            QTextBrowser, QLineEdit {
+                background:white;
+                border:1px solid #ccc;
+                border-radius:4px;
+                padding:4px;
+            }
+            QPushButton {
+                background:#e1e1e1;
+                border:1px solid #bbb;
+                padding:6px;
+                border-radius:4px;
+            }
         """)
 
 
-# ── entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = MainWindow()
