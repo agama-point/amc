@@ -4,11 +4,37 @@
 import asyncio
 from amc.decode import parse_packet, format_output, print_knowledge_base
 from amc.test import run_self_test
+# from amc.decode import MSG_ONLY, DEDUP_WINDOW
+import amc.decode as mcd
 from amc import Device, DEVICE_ADDRESS, NAME_CHAR, RX_CHAR
+import os
+from datetime import datetime
 
 DEBUG = False
+DATA_LOG = True
+mcd.MSG_ONLY = True
+mcd.DEDUP_WINDOW = 2.0
 
 print_knowledge_base()
+
+
+# -------------- log ---------------
+filename = datetime.now().strftime("data/msg_log_%y%m%d_%H%M.txt")
+if DATA_LOG:
+    if not os.path.exists('data'):
+        os.makedirs('data')
+    if not os.path.exists(filename):
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write("amc_monitor | data log\n")
+
+
+def log_str(s):
+    if not DATA_LOG or filename is None:
+        return
+
+    with open(filename, 'a', encoding='utf-8') as f:
+        f.write(s + "\n")
+# -------------- /log ---------------
 
 
 async def main():
@@ -34,7 +60,9 @@ async def main():
               out = format_output(parsed, debug_mode=DEBUG)
               if out is not None:
                   print(out)
-                        
+                  if DATA_LOG:
+                      log_str(out)
+
             # Register handler in BLE library
             await dev.start_monitoring(handler)
             
