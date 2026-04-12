@@ -10,8 +10,9 @@ DEBUG = False
 
 print_knowledge_base()
 
+
 async def main():
-    # 1. Spustit test pokud je DEBUG aktivní (nastavuješ v amc/test.py)
+    # 1. Run self-test if DEBUG is enabled (set in amc/test.py)
     if DEBUG:
         if not run_self_test():
             print("❌ Self-test failed. Exiting.")
@@ -27,17 +28,17 @@ async def main():
             print("="*63)
             print("Monitoring traffic...\n")
             
-            # --- TADY JE TEN HANDLER ---
+            # --- HERE IS THE HANDLER ---
             async def handler(sender, data):
-                # Převedeme data na bytes, parsujeme a zformátujeme s ohledem na DEBUG
+                # Convert data to bytes, parse, and format with respect to DEBUG
                 parsed = parse_packet(bytes(data))
-                # format_output teď dostává druhý parametr 'debug_mode'
+                # format_output now receives the second parameter 'debug_mode'
                 print(format_output(parsed, debug_mode=DEBUG))
             
-            # Registrace handleru do BLE knihovny
+            # Register handler in BLE library
             await dev.start_monitoring(handler)
             
-            # Udržujeme smyčku naživu
+            # Keep the loop alive
             while True:
                 await asyncio.sleep(1)
         else:
@@ -102,11 +103,6 @@ Monitoring traffic...
 09:13:44.775 | 88 | 76B | 33CA ➔ 1504
   [#test] agoranode: @[Yenda_Tag] podej žákovskou, píši za 1
 09:13:48.407 | 88 | 79B | E085 ➔ 1507
-  [#test] observer.hkfree.org: Hradec Kralove OK, Yenda_Tag
-09:13:48.408 | 83 | 1B
-09:13:49.125 | 88 | 81B | F58E ➔ 1509
-  [#test] observer.hkfree.org: Hradec Kralove OK, Yenda_Tag
-09:13:49.847 | 88 | 82B | 30CA ➔ 150A
   [#test] observer.hkfree.org: Hradec Kralove OK, Yenda_Tag
 ...
 """
