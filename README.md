@@ -73,5 +73,9 @@ Install dependencies:
 pip install bleak
 ```
 
+---
+
+[AMC specification](https://github.com/agama-point/amc/blob/main/amc_spec.md)
+
 
 
