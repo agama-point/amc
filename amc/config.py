@@ -1,8 +1,8 @@
 # Configuration for Agama MeshCore BLE connection
 #y_03:
-DEVICE_ADDRESS = "CE:2E:9F:5E:12:FB"
+DEVICE_ADDRESS = "CE:2E:9F:xx:xx:xx"
 #yTag:
-#DEVICE_ADDRESS = "C6:04:19:D0:3F:CA"
+#DEVICE_ADDRESS = "C6:04:19:D0:xx:xx"
 
 # MeshCore (Nordic UART Service - NUS)
 # 6e400002 = RX char  → App píše SEM   (write)
