@@ -4,6 +4,16 @@
 Experimental Python tools for interacting with **Agama MeshCore** devices over Bluetooth Low Energy (BLE).
 
 
+## Install
+```bash
+git clone https://github.com/agama-point/amc.git
+cd amc
+python3 -m venv venv  
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+---
 
 ## Overview
 
