@@ -15,8 +15,6 @@ DATA_LOG = True
 mcd.MSG_ONLY = True
 mcd.DEDUP_WINDOW = 2.0
 
-print_knowledge_base()
-
 # -------------- log ---------------
 filename = datetime.now().strftime("data/msg_log_%y%m%d_%H%M.txt")
 if DATA_LOG:
