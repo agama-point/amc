@@ -112,3 +112,9 @@ def decode_meshcore_frame(transport_bytes: bytes, known_channels: list[str]):
 
 -   Partial AES block handling required
 -   Timestamp is little-endian
+
+
+---
+
+MeshCore spec: [docs/companion_protocol.md](https://github.com/meshcore-dev/MeshCore/blob/main/docs/companion_protocol.md)
+
