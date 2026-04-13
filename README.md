@@ -1,7 +1,7 @@
 # Agama MeshCore BLE Tools
 
 
-Experimental Python tools for interacting with \*\*Agama MeshCore\*\* devices over Bluetooth Low Energy (BLE).
+Experimental Python tools for interacting with **Agama MeshCore** devices over Bluetooth Low Energy (BLE).
 
 
 
@@ -57,25 +57,23 @@ Functionality may change, break, or be incomplete.
 
 Improving Linux compatibility is planned.
 
-
-
+---
 ## Requirements
 
 - Python 3.10+
 
-pip install -r requirements.txt
-
-
 Install dependencies:
 
-
 ```bash
-pip install bleak
+pip install -r requirements.txt
 ```
 
 ---
 
 [AMC specification](https://github.com/agama-point/amc/blob/main/amc_spec.md)
+
+[flasher](https://meshcore.co.uk/flasher.html)
+| on-line app: [app.meshcore.nz](https://app.meshcore.nz/)
 
 
 
